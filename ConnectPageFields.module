@@ -1,0 +1,272 @@
+<?php
+
+/**
+ *
+ * Connect Page Fields
+ *
+ * @author Robin Sallis
+ *
+ * ProcessWire 3.x
+ * Copyright (C) 2011 by Ryan Cramer
+ * Licensed under GNU/GPL v2, see LICENSE.TXT
+ *
+ * http://www.processwire.com
+ * http://www.ryancramer.com
+ *
+ */
+
+class ConnectPageFields extends WireData implements Module, ConfigurableModule {
+
+	/**
+	 * Module information
+	 */
+	public static function getModuleInfo() {
+		return array(
+			'title' => 'Connect Page Fields',
+			'version' => '1',
+			'summary' => "Allows the connecting of two related Page fields so that changing one updates the other.",
+			'author' => 'Robin Sallis',
+			'autoload' => true,
+			'icon' => 'arrows-h',
+		);
+	}
+
+	/**
+	 * Initialise
+	 */
+	public function init() {
+		$this->pages->addHookAfter('saveReady', $this, 'updatePageFields');
+		$this->pages->addHookAfter('saveFieldReady', $this, 'updatePageFields');
+		$this->addHookBefore('Modules::saveModuleConfigData', $this, 'cleanConfig');
+		$this->addHookBefore('ProcessModule::executeEdit', $this, 'ajaxResponse');
+		if($this->input->get->name == $this->className()) {
+			$this->addHookAfter('ProcessModule::executeEdit', $this, 'addScript');
+		}
+	}
+
+	/**
+	 * Add JavaScript to module config screen
+	 */
+	public function addScript(){
+		$conf = $this->getModuleInfo();
+		$version = (int) $conf['version'];
+		$this->config->scripts->add($this->config->urls->ConnectPageFields . "ConnectPageFields.js?v={$version}");
+	}
+
+	/**
+	 * Do AJAX response
+	 */
+	public function ajaxResponse($event) {
+		$inputfield_name = $this->input->get->cpf_inputfield;
+		$template_id = $this->input->get->cpf_value;
+		if((!$this->config->ajax || $template_id === null)) return;
+		$event->replace = true;
+
+		$identifier = substr($inputfield_name, -2);
+		$fields = $this->modules->getModuleConfigInputfields($this->className());
+		$f = $fields->get("pagefield_{$identifier}");
+		if($f) {
+			$out = array();
+			$out['name'] = $f->name;
+			$out['options'] = array();
+			$out['options'][''] = '&nbsp;';
+			$template = $this->templates->get($template_id);
+			if($template) {
+				$select_options = $template->fieldgroup->find("type=FieldtypePage");
+				foreach($select_options as $select_option) {
+					$out['options'][$select_option->name] = $select_option->label ?: $select_option->name;
+				}
+			}
+			$out = wireEncodeJSON($out);
+		} else {
+			$out = '';
+		}
+		$event->return = $out;
+	}
+
+	/**
+	 * Deleted config inputfields are not automatically removed the db
+	 * so clean the config data before it is saved
+	 */
+	public function cleanConfig($event) {
+		$module_name = $event->arguments('className');
+		$config = $event->arguments('configData');
+		if(is_object($module_name)) $module_name = $module_name->className();
+		if($module_name !== $this->className()) return;
+		foreach($config as $key => $value) {
+			$num = filter_var($key, FILTER_SANITIZE_NUMBER_INT);
+			if($num > $config['fieldset_count']) unset($config[$key]);
+		}
+		$event->arguments('configData', $config);
+	}
+
+
+	/**
+	 * Update Page fields
+	 */
+	public function updatePageFields($event) {
+		// Get page
+		$page = $event->arguments('page');
+		$tpl_id = $page->template->id;
+		$config =  $this->modules->getModuleConfigData($this->className());
+
+		// Quick return if template ID is not in config
+		if(!in_array($tpl_id, $config)) return;
+
+		unset($config['fieldset_count']);
+		$keys = array_keys($config, $tpl_id);
+		foreach($keys as $key) {
+			$num = filter_var($key, FILTER_SANITIZE_NUMBER_INT);
+			$letter = substr($key, -1);
+			// Make sure module config is populated
+			if( "$this->template_{$num}a" && "$this->pagefield_{$num}a" && "$this->template_{$num}b" && "$this->pagefield_{$num}b" ) {
+				// Set the fieldnames we will be dealing with
+				$other_letter = $letter === 'a' ? 'b' : 'a';
+				$this_fname = $config["pagefield_{$num}{$letter}"];
+				$other_fname = $config["pagefield_{$num}{$other_letter}"];
+
+				// Update page fields
+				if($page->id > 0 && $page->isChanged($this_fname)) {
+
+					// Old value
+					$old_value = $this->pages->getById($page->id, array(
+						'cache' => false, // don't let it write to cache
+						'getFromCache' => false, // don't let it read from cache
+						'getOne' => true, // return a Page instead of a PageArray
+					))->$this_fname;
+
+					// New value
+					$new_value = $page->$this_fname;
+
+					// Value changes
+					$added = $new_value->find("id!=$old_value");
+					$removed = $old_value->find("id!=$new_value");
+
+					// Apply to other page field
+					foreach($added as $item) {
+						if(!$item->$other_fname->has($page)) {
+							$item->of(false);
+							$item->$other_fname->add($page);
+							$item->save($other_fname);
+						}
+					}
+					foreach($removed as $item) {
+						if($item->$other_fname->has($page)) {
+							$item->of(false);
+							$item->$other_fname->remove($page);
+							$item->save($other_fname);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * Config inputfields
+	 */
+	public function getModuleConfigInputfields() {
+		$inputfields = new InputfieldWrapper();
+
+		$f = $this->modules->get('InputfieldMarkup');
+		$f->name = '_info';
+		$f->label = $this->_('Information');
+		$trans1 = $this->_('This module allows you to connect two Page fields &#x28;a "connected field pair"&#x29; so that when the value of one is changed the other is updated to be consistent with it. The settings for each Page field must be such that the selectable pages for the field are limited to a single template.');
+		$trans2 = $this->_('For each field pair there are four inputfields as follows:');
+		$trans3 = $this->_('Template A: a template containing PageField A');
+		$trans4 = $this->_('PageField A: the settings for this field should specify Template B for its selectable pages');
+		$trans5 = $this->_('Template B: a template containing PageField B');
+		$trans6 = $this->_('PageField B: the settings for this field should specify Template A for its selectable pages');
+		$trans7 = $this->_('You can define up to 20 connected field pairs if needed.');
+		$f->value = "
+		<p>$trans1</p>
+		<p>$trans2</p>
+		<p>$trans3<br>
+		$trans4<br>
+		$trans5<br>
+		$trans6</p>
+		<p>$trans7</p>
+		";
+		$inputfields->add($f);
+
+		$f = $this->modules->get('InputfieldInteger');
+		$f->name = 'fieldset_count';
+		$f->label = $this->_('Number of connected field pairs');
+		$f->description = $this->_('Save the module config after changing this field.');
+		$f->inputType = 'number';
+		$f->min = 0;
+		$f->max = 20;
+		$f->value = $this->fieldset_count ?: 1;
+		$inputfields->add($f);
+
+		$count = $this->fieldset_count > 0 ? $this->fieldset_count : 1;
+		for($i = 1; $i <= $count; $i++) {
+			$fieldset = $this->makeFieldset($i);
+			$inputfields->add($fieldset);
+		}
+
+		return $inputfields;
+	}
+
+	/**
+	 * Make fieldset
+	 */
+	public function makeFieldset($identifier = 'x') {
+		$fieldset = $this->modules->get("InputfieldFieldset");
+		$fieldset->name = "connected_fields_{$identifier}";
+		$fieldset->label = $this->_('Connected field pair') . " $identifier";
+		$fieldset->collapsed = Inputfield::collapsedBlank;
+
+		$f = $this->makeTemplateSelect("{$identifier}a");
+		$fieldset->add($f);
+
+		$f = $this->makePageFieldSelect("{$identifier}a");
+		$fieldset->add($f);
+
+		$f = $this->makeTemplateSelect("{$identifier}b");
+		$fieldset->add($f);
+
+		$f = $this->makePageFieldSelect("{$identifier}b");
+		$fieldset->add($f);
+
+		return $fieldset;
+	}
+
+	/**
+	 * Make select for template
+	 */
+	public function makeTemplateSelect($identifier = 'xx') {
+		$caps_identifier = strtoupper($identifier);
+		$f = $this->modules->get('InputfieldSelect');
+		$f->name = "template_{$identifier}";
+		$f->label = $this->_('Template') . " $caps_identifier";
+		$f->columnWidth = 25;
+		foreach($this->templates as $template) {
+			if($template->fields->find("type=FieldtypePage")->count()) {
+				$f->addOption($template->id, $template->label ?: $template->name);
+			}
+		}
+		$config_field = "template_{$identifier}";
+		$f->value = $this->$config_field;
+		return $f;
+	}
+
+	/**
+	 * Make select for Page field
+	 */
+	public function makePageFieldSelect($identifier = 'xx') {
+		$caps_identifier = strtoupper($identifier);
+		$f = $this->modules->get('InputfieldSelect');
+		$f->name = "pagefield_{$identifier}";
+		$f->label = $this->_('PageField') . " $caps_identifier";
+		$f->columnWidth = 25;
+		$select_options = $this->fields->find("type=FieldtypePage");
+		foreach($select_options as $select_option) {
+			$f->addOption($select_option->name, $select_option->label ?: $select_option->name);
+		}
+		$config_field = "pagefield_{$identifier}";
+		$f->value = $this->$config_field;
+		return $f;
+	}
+
+}
