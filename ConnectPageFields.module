@@ -23,7 +23,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Connect Page Fields',
-			'version' => '2',
+			'version' => '3',
 			'summary' => "Allows the connecting of two related Page fields so that changing one updates the other.",
 			'author' => 'Robin Sallis',
 			'autoload' => true,
@@ -64,6 +64,9 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 	public function updatePageFields($event) {
 
 		$page = $event->arguments('page');
+
+		if($page->skipme) return;
+
 		$tpl = $page->template;
 		$config =  $this->modules->getModuleConfigData($this->className());
 		unset($config['fieldset_count']); // we don't need fieldset_count
@@ -71,52 +74,57 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		if(!$flds->count()) return;
 
 		foreach($flds as $fld) {
+
+			$this_fname = $fld->name;
+
+			// only if the page is not still null and the field has changed
+			if(!$page->id || !$page->isChanged($this_fname)) continue;
+
 			$config_matches = array_keys($config, $fld->name); // find occurrences of field in config
 			foreach ($config_matches as $config_match) {
 				$letter = $letter = substr($config_match, -1);
 				$num = filter_var($config_match, FILTER_SANITIZE_NUMBER_INT);
+
 				// Make sure the pair of fields is populated in module config
-				if( "$this->pagefield_{$num}a" && "$this->pagefield_{$num}b" ) {
-					// Set the fieldnames we will be dealing with
-					$other_letter = $letter === 'a' ? 'b' : 'a';
-					$this_fname = $fld->name;
-					$other_fname = $config["pagefield_{$num}{$other_letter}"];
-					$other_field = $this->fields->get("$other_fname");
+				if( !$config["pagefield_{$num}a"] || !$config["pagefield_{$num}b"] ) continue;
 
-					// Update page fields
-					if($page->id > 0 && $page->isChanged($this_fname)) {
+				// Get the other field
+				$other_letter = $letter === 'a' ? 'b' : 'a';
+				$other_fname = $config["pagefield_{$num}{$other_letter}"];
+				$other_field = $this->fields->get("$other_fname");
 
-						// Old value
-						$old_value = $this->pages->getById($page->id, array(
-							'cache' => false, // don't let it write to cache
-							'getFromCache' => false, // don't let it read from cache
-							'getOne' => true, // return a Page instead of a PageArray
-						))->$this_fname;
+				// Update page fields
+				// Old value
+				$old_value = $this->pages->getById($page->id, array(
+					'cache' => false, // don't let it write to cache
+					'getFromCache' => false, // don't let it read from cache
+					'getOne' => true, // return a Page instead of a PageArray
+				))->$this_fname;
 
-						// New value
-						$new_value = $page->$this_fname;
+				// New value
+				$new_value = $page->$this_fname;
 
-						// Value changes
-						$added = $new_value->find("id!=$old_value");
-						$removed = $old_value->find("id!=$new_value");
+				// Value changes
+				$added = $new_value->find("id!=$old_value");
+				$removed = $old_value->find("id!=$new_value");
 
-						// Apply to other page field
-						foreach ($added as $item) {
-							$added_valid = $this->modules->InputfieldPage->isValidPage($page, $other_field, $item);
-							if($added_valid && !$item->$other_fname->has($page)) {
-								$item->of(false);
-								$item->$other_fname->add($page);
-								$item->save($other_fname);
-							}
-						}
-						foreach ($removed as $item) {
-							$removed_valid = $this->modules->InputfieldPage->isValidPage($page, $other_field, $item);
-							if($removed_valid && $item->$other_fname->has($page)) {
-								$item->of(false);
-								$item->$other_fname->remove($page);
-								$item->save($other_fname);
-							}
-						}
+				// Apply to other page field
+				foreach ($added as $item) {
+					$added_valid = $this->modules->InputfieldPage->isValidPage($page, $other_field, $item);
+					if($added_valid && !$item->$other_fname->has($page)) {
+						$item->of(false);
+						$item->$other_fname->add($page);
+						$item->skipme = true;
+						$item->save($other_fname);
+					}
+				}
+				foreach ($removed as $item) {
+					$removed_valid = $this->modules->InputfieldPage->isValidPage($page, $other_field, $item);
+					if($removed_valid && $item->$other_fname->has($page)) {
+						$item->of(false);
+						$item->$other_fname->remove($page);
+						$item->skipme = true;
+						$item->save($other_fname);
 					}
 				}
 			}
