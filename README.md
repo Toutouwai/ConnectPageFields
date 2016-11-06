@@ -15,15 +15,15 @@ The solution is to have a two-way relationship so that movie pages have an "acto
 
 ## Usage
 
-[Install](http://modules.processwire.com/install-uninstall/) the ConnectPageFields module. Create the two Page fields you want to connect if you haven't already done so. The settings for each Page field must be such that the selectable pages for the field are limited to a single template.
-
-In the module config...
-
-1. Choose "Template A" - the template that contains the first Page field.
-2. Choose "PageField A" - the first Page field. This field should have settings that limit the selectable pages to the template chosen in "Template B".
-3. Choose "Template B" - the template that contains the second Page field.
-4. Choose "PageField B" - the second Page field. This field should have settings that limit the selectable pages to the template chosen in "Template A".
-
-This sounds more confusing in the abstract than it will be in practice :)
+[Install](http://modules.processwire.com/install-uninstall/) the ConnectPageFields module. If you haven't already done so, create the two Page fields you want to connect and add them to templates.
+ 
+In the module select the two Page fields in a "Connected field pair" row as PageField A and PageField B.
 
 You can define up to 20 pairs of connected Page fields. Use the "Number of connected field pairs" field to add rows as needed.
+
+### Troubleshooting
+
+Make sure you have set the "Selectable Pages" settings for each Page field correctly: 
+
+* The settings for PageField A should allow pages using the template(s) that PageField B has been added to.
+* The settings for PageField B should allow pages using the template(s) that PageField A has been added to.
