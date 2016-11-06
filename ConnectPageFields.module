@@ -103,7 +103,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 						// Apply to other page field
 						foreach ($added as $item) {
 							$added_valid = $this->modules->InputfieldPage->isValidPage($page, $other_field, $item);
-							if ( $added_valid && !$item->$other_fname->has($page) ) {
+							if($added_valid && !$item->$other_fname->has($page)) {
 								$item->of(false);
 								$item->$other_fname->add($page);
 								$item->save($other_fname);
@@ -111,7 +111,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 						}
 						foreach ($removed as $item) {
 							$removed_valid = $this->modules->InputfieldPage->isValidPage($page, $other_field, $item);
-							if ( $removed_valid && $item->$other_fname->has($page) ) {
+							if($removed_valid && $item->$other_fname->has($page)) {
 								$item->of(false);
 								$item->$other_fname->remove($page);
 								$item->save($other_fname);
