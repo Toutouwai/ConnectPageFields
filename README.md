@@ -13,6 +13,8 @@ You cannot retrieve these pages with a single efficient $pages->find() query, an
 
 The solution is to have a two-way relationship so that movie pages have an "actors" Page field and actor pages have a "movies" Page field. This module will keep these two Page fields in sync so that adding "Ryan Gosling" to "Drive" automatically adds "Drive" to "Ryan Gosling".
 
+Also, you can select the same Page field in both PageField A and PageField B. For example, create a "Related" Page field for related pages. Choose "Related" for both fields in a pair in the module config. Now when you add "Orange buffoon" to Related for "Donald Trump", "Donald Trump" is automatically added to Related for "Orange buffoon".
+
 ## Usage
 
 [Install](http://modules.processwire.com/install-uninstall/) the ConnectPageFields module. If you haven't already done so, create the two Page fields you want to connect and add them to templates.

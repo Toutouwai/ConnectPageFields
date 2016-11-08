@@ -65,6 +65,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 
 		$page = $event->arguments('page');
 
+		// check if page was saved by this module to prevent recursion
 		if($page->skipme) return;
 
 		$tpl = $page->template;
