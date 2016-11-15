@@ -23,7 +23,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Connect Page Fields',
-			'version' => '3',
+			'version' => '4',
 			'summary' => "Allows the connecting of two related Page fields so that changing one updates the other.",
 			'author' => 'Robin Sallis',
 			'autoload' => true,
@@ -40,7 +40,6 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		$this->addHookBefore('Modules::saveModuleConfigData', $this, 'cleanConfig');
 	}
 
-
 	/**
 	 * Deleted config inputfields are not automatically removed the db
 	 * so clean the config data before it is saved
@@ -56,7 +55,6 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		}
 		$event->arguments('configData', $config);
 	}
-
 
 	/**
 	 * Update Page fields
@@ -81,6 +79,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 			// only if the page is not still null and the field has changed
 			if(!$page->id || !$page->isChanged($this_fname)) continue;
 
+			$this_is_multi = $fld->derefAsPage == FieldtypePage::derefAsPageArray ? true : false;
 			$config_matches = array_keys($config, $fld->name); // find occurrences of field in config
 			foreach ($config_matches as $config_match) {
 				$letter = $letter = substr($config_match, -1);
@@ -93,11 +92,11 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 				$other_letter = $letter === 'a' ? 'b' : 'a';
 				$other_fname = $config["pagefield_{$num}{$other_letter}"];
 				$other_field = $this->fields->get("$other_fname");
+				$other_is_multi = $other_field->derefAsPage == FieldtypePage::derefAsPageArray ? true : false;
 
 				// Update page fields
 				// Old value
 				$old_value = $this->pages->getById($page->id, array(
-					'cache' => false, // don't let it write to cache
 					'getFromCache' => false, // don't let it read from cache
 					'getOne' => true, // return a Page instead of a PageArray
 				))->$this_fname;
@@ -106,24 +105,39 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 				$new_value = $page->$this_fname;
 
 				// Value changes
-				$added = $new_value->find("id!=$old_value");
-				$removed = $old_value->find("id!=$new_value");
+				$added = new PageArray();
+				$removed = new PageArray();
+				if($this_is_multi) {
+					// for multi Page fields
+					$added = $new_value->find("id!=$old_value");
+					$removed = $old_value->find("id!=$new_value");
+				} else {
+					// for non-multi Page fields
+					// if the old value was a Page and not a NullPage
+					if($old_value && $old_value->id) $removed->add($old_value);
+					// if the new value is a Page and not a NullPage
+					if($new_value && $new_value->id) $added->add($new_value);
+				}
 
 				// Apply to other page field
-				foreach ($added as $item) {
+				foreach($added as $item) {
+					if(!$item->fields->get($other_fname)) continue;
 					$added_valid = $this->modules->InputfieldPage->isValidPage($page, $other_field, $item);
-					if($added_valid && !$item->$other_fname->has($page)) {
+					$not_existing = $other_is_multi ? !$item->$other_fname->has($page) : $item->$other_fname != $page;
+					if($added_valid && $not_existing) {
 						$item->of(false);
-						$item->$other_fname->add($page);
+						$other_is_multi ? $item->$other_fname->add($page) : $item->$other_fname = $page;
 						$item->skipme = true;
 						$item->save($other_fname);
 					}
 				}
-				foreach ($removed as $item) {
+				foreach($removed as $item) {
+					if(!$item->fields->get($other_fname)) continue;
 					$removed_valid = $this->modules->InputfieldPage->isValidPage($page, $other_field, $item);
-					if($removed_valid && $item->$other_fname->has($page)) {
+					$existing = $other_is_multi ? $item->$other_fname->has($page) : $item->$other_fname == $page;
+					if($removed_valid && $existing) {
 						$item->of(false);
-						$item->$other_fname->remove($page);
+						$other_is_multi ? $item->$other_fname->remove($page) : $item->$other_fname = '';
 						$item->skipme = true;
 						$item->save($other_fname);
 					}
@@ -174,7 +188,6 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 
 		return $fieldset;
 	}
-
 
 	/**
 	 * Make select for Page field

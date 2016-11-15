@@ -19,7 +19,7 @@ Also, you can select the same Page field in both PageField A and PageField B. Fo
 
 [Install](http://modules.processwire.com/install-uninstall/) the ConnectPageFields module. If you haven't already done so, create the two Page fields you want to connect and add them to templates.
  
-In the module select the two Page fields in a "Connected field pair" row as PageField A and PageField B.
+In the module config select the two Page fields in a "Connected field pair" row as PageField A and PageField B.
 
 You can define up to 20 pairs of connected Page fields. Use the "Number of connected field pairs" field to add rows as needed.
 
@@ -29,3 +29,7 @@ Make sure you have set the "Selectable Pages" settings for each Page field corre
 
 * The settings for PageField A should allow pages using the template(s) that PageField B has been added to.
 * The settings for PageField B should allow pages using the template(s) that PageField A has been added to.
+
+## License
+
+Released under Mozilla Public License v2. See file LICENSE for details.
