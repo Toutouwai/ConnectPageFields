@@ -23,7 +23,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Connect Page Fields',
-			'version' => '4',
+			'version' => '5',
 			'summary' => "Allows the connecting of two related Page fields so that changing one updates the other.",
 			'author' => 'Robin Sallis',
 			'autoload' => true,
@@ -32,28 +32,66 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 	}
 
 	/**
-	 * Initialise
+	 * Install
 	 */
-	public function init() {
-		$this->pages->addHookAfter('saveReady', $this, 'updatePageFields');
-		$this->pages->addHookAfter('saveFieldReady', $this, 'updatePageFields');
-		$this->addHookBefore('Modules::saveModuleConfigData', $this, 'cleanConfig');
+	public function ___install() {
+		// create one row code to get things started
+		$this->modules->saveModuleConfigData($this->className, array('codes' => uniqid() . '|') );
 	}
 
 	/**
-	 * Deleted config inputfields are not automatically removed the db
-	 * so clean the config data before it is saved
+	 * Upgrade
 	 */
-	public function cleanConfig($event) {
-		$module_name = $event->arguments('className');
-		$config = $event->arguments('configData');
-		if(is_object($module_name)) $module_name = $module_name->className();
-		if($module_name !== $this->className()) return;
-		foreach($config as $key => $value) {
-			$num = filter_var($key, FILTER_SANITIZE_NUMBER_INT);
-			if($num > $config['fieldset_count']) unset($config[$key]);
+	public function ___upgrade($fromVersion, $toVersion) {
+		// Upgrade from < v0.0.5
+		if($fromVersion < 5) {
+			// get existing config
+			$cfg =  $this->modules->getModuleConfigData($this->className());
+			// organise into groups
+			$cfg_grouped = array();
+			foreach($cfg as $key => $value) {
+				if(strpos($key, 'pagefield') !== false) { // we only want the pagefield config fields
+					$num = filter_var($key, FILTER_SANITIZE_NUMBER_INT);
+					$cfg_grouped[$num][$key] = $value;
+				}
+			}
+			// set new config
+			$new_cfg = array();
+			$new_cfg['codes'] = '';
+			foreach($cfg_grouped as $key => $value) {
+				if(is_array($value)) {
+					$unique = uniqid();
+					$new_cfg['codes'] .= "$unique|";
+					$i = 1;
+					foreach($value as $key2 => $value2) {
+						$new_key = substr($key2, 0, -2) . $i . "_$unique";
+						$new_cfg[$new_key] = $value2;
+						$i++;
+					}
+				}
+			}
+			$this->modules->saveModuleConfigData($this->className(), array()); // clear config
+			$this->modules->saveModuleConfigData($this->className, $new_cfg); // save new config
 		}
-		$event->arguments('configData', $config);
+	}
+
+	/**
+	 * Ready
+	 */
+	public function ready() {
+		// add css and js for module config page
+		$info = $this->getModuleInfo();
+		$version = (int) $info['version'];
+		$config = $this->config;
+		if($this->input->get->name == $this->className) {
+			$config->styles->add($config->urls->{$this->className} . "module_config.css?v=$version");
+			$config->scripts->add($config->urls->{$this->className} . "module_config.js?v=$version");
+		}
+
+		// hooks
+		$this->pages->addHookAfter('saveReady', $this, 'updatePageFields');
+		$this->pages->addHookAfter('saveFieldReady', $this, 'updatePageFields');
+		$this->addHookBefore('Modules::saveModuleConfigData', $this, 'processConfig');
 	}
 
 	/**
@@ -67,11 +105,14 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		if($page->skipme) return;
 
 		$tpl = $page->template;
-		$config =  $this->modules->getModuleConfigData($this->className());
-		unset($config['fieldset_count']); // we don't need fieldset_count
-		$flds = $tpl->fieldgroup->find("name=" . implode('|', $config)); // look for connected fields on this page
-		if(!$flds->count()) return;
+		$cfg =  $this->modules->getModuleConfigData($this->className());
+		$cfg_filtered = array();
+		foreach($cfg as $key => $value) {
+			if(strpos($key, 'pagefield') !== false) $cfg_filtered[$key] = $value; // we only want the pagefield config fields
+		}
 
+		$flds = $tpl->fieldgroup->find("name=" . implode('|', $cfg_filtered)); // look for connected fields on this page
+		if(!$flds->count()) return;
 		foreach($flds as $fld) {
 
 			$this_fname = $fld->name;
@@ -80,17 +121,18 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 			if(!$page->id || !$page->isChanged($this_fname)) continue;
 
 			$this_is_multi = $fld->derefAsPage == FieldtypePage::derefAsPageArray ? true : false;
-			$config_matches = array_keys($config, $fld->name); // find occurrences of field in config
-			foreach ($config_matches as $config_match) {
-				$letter = $letter = substr($config_match, -1);
-				$num = filter_var($config_match, FILTER_SANITIZE_NUMBER_INT);
+
+			$cfg_matches = array_keys($cfg_filtered, $fld->name); // find occurrences of field in config
+			foreach ($cfg_matches as $cfg_match) {
+				$unique = substr($cfg_match, -13); // last 13 characters are the unique code
+				$num = $cfg_match[10];
 
 				// Make sure the pair of fields is populated in module config
-				if( !$config["pagefield_{$num}a"] || !$config["pagefield_{$num}b"] ) continue;
+				if( !$cfg_filtered["pagefield_1_{$unique}"] || !$cfg_filtered["pagefield_2_{$unique}"] ) continue;
 
 				// Get the other field
-				$other_letter = $letter === 'a' ? 'b' : 'a';
-				$other_fname = $config["pagefield_{$num}{$other_letter}"];
+				$other_num = $num === '1' ? '2' : '1';
+				$other_fname = $cfg_filtered["pagefield_{$other_num}_{$unique}"];
 				$other_field = $this->fields->get("$other_fname");
 				$other_is_multi = $other_field->derefAsPage == FieldtypePage::derefAsPageArray ? true : false;
 
@@ -147,63 +189,151 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 	}
 
 	/**
+	 * Process the config data on save
+	 */
+	public function processConfig($event) {
+		$module_name = $event->arguments('className');
+		$cfg = $event->arguments('configData');
+		if(is_object($module_name)) $module_name = $module_name->className();
+		if($module_name !== $this->className()) return;
+
+		// if the "Add another row" button was clicked
+		if($cfg['add_new']) {
+			$cfg['codes'] .= $cfg['unique'] . '|';
+		}
+
+		// if any rows were marked for deletion
+		$delete_codes = array();
+		foreach($cfg as $key => $value) {
+			if (strpos($key, 'delete_') === 0 && $value === 1) {
+				$delete_codes[] = substr($key, -13); // last 13 characters are the unique code;
+			}
+		}
+		if(count($delete_codes)) {
+			foreach($delete_codes as $delete_code) {
+				$cfg['codes'] = str_replace("$delete_code|", '', $cfg['codes']);
+			}
+			foreach($cfg as $key => $value) {
+				if($this->strposa($key, $delete_codes, 0)) {
+					unset($cfg[$key]);
+				}
+			}
+		}
+
+		// return processed config
+		$event->arguments('configData', $cfg);
+	}
+
+	/**
+	 * strpos() with array of strings as needle
+	 */
+	public function strposa($haystack, $needle, $offset=0) {
+		if(!is_array($needle)) $needle = array($needle);
+		foreach($needle as $query) {
+			if(strpos($haystack, $query, $offset) !== false) return true;
+		}
+		return false;
+	}
+
+	/**
 	 * Config inputfields
 	 */
 	public function getModuleConfigInputfields() {
 		$inputfields = new InputfieldWrapper();
 
-		$f = $this->modules->get('InputfieldInteger');
-		$f->name = 'fieldset_count';
-		$f->label = $this->_('Number of connected field pairs');
-		$f->description = $this->_('Save the module config after changing this field.');
-		$f->inputType = 'number';
-		$f->min = 0;
-		$f->max = 20;
-		$f->value = $this->fieldset_count ?: 1;
-		$inputfields->add($f);
+		$inputfields->add( $this->makeCodes() );
+		$inputfields->add( $this->makeUnique() );
 
-		$count = $this->fieldset_count > 0 ? $this->fieldset_count : 1;
-		for($i = 1; $i <= $count; $i++) {
-			$fieldset = $this->makeFieldset($i);
-			$inputfields->add($fieldset);
+		$codes = explode('|', rtrim($this->codes, '|'));
+		$i = 1;
+		foreach($codes as $code) {
+			if(!$code) break;
+			$inputfields->add( $this->makeFieldset($code, $i) );
+			$i++;
 		}
+
+		$inputfields->add( $this->makeAddNew() );
 
 		return $inputfields;
 	}
 
 	/**
+	 * Make codes field
+	 */
+	public function makeCodes() {
+		$f_name = 'codes';
+		$f = $this->modules->get('InputfieldTextarea');
+		$f->name = $f_name;
+		$f->value = $this->$f_name;
+		$f->collapsed = Inputfield::collapsedHidden;
+		return $f;
+	}
+
+	/**
+	 * Make unique field
+	 */
+	public function makeUnique() {
+		$f = $this->modules->get('InputfieldText');
+		$f->name = 'unique';
+		$f->value = uniqid();
+		$f->collapsed = Inputfield::collapsedHidden;
+		return $f;
+	}
+
+	/**
+	 * Make 'Add New' button
+	 */
+	public function makeAddNew() {
+		$f = $this->modules->get('InputfieldCheckbox');
+		$f->name = 'add_new';
+		$f->label = $this->_('Add another row');
+		return $f;
+	}
+
+	/**
 	 * Make fieldset
 	 */
-	public function makeFieldset($identifier = 'x') {
+	public function makeFieldset($identifier, $number) {
 		$fieldset = $this->modules->get("InputfieldFieldset");
-		$fieldset->name = "connected_fields_{$identifier}";
-		$fieldset->label = $this->_('Connected field pair') . " $identifier";
-		$fieldset->collapsed = Inputfield::collapsedBlank;
+		$fieldset->name = "row_{$identifier}";
+		$fieldset->label = $this->_('Connected field pair') . " $number";
 
-		$f = $this->makePageFieldSelect("{$identifier}a");
+		$f = $this->makePageFieldSelect(1, $identifier);
 		$fieldset->add($f);
 
-		$f = $this->makePageFieldSelect("{$identifier}b");
+		$f = $this->makePageFieldSelect(2, $identifier);
+		$fieldset->add($f);
+
+		$f = $this->makeDeleteCheckbox($identifier);
 		$fieldset->add($f);
 
 		return $fieldset;
 	}
 
 	/**
+	 * Make checkbox for row deletion
+	 */
+	public function makeDeleteCheckbox($identifier) {
+		$f = $this->modules->get('InputfieldCheckbox');
+		$f->name = "delete_{$identifier}";
+		$f->label = $this->_('Delete');
+		return $f;
+	}
+
+	/**
 	 * Make select for Page field
 	 */
-	public function makePageFieldSelect($identifier = 'xx') {
-		$caps_identifier = strtoupper($identifier);
+	public function makePageFieldSelect($number, $identifier) {
+		$f_name = "pagefield_{$number}_{$identifier}";
 		$f = $this->modules->get('InputfieldSelect');
-		$f->name = "pagefield_{$identifier}";
-		$f->label = $this->_('PageField') . " $caps_identifier";
+		$f->name = $f_name;
+		$f->label = $this->_('Page field');
 		$f->columnWidth = 50;
 		$select_options = $this->fields->find("type=FieldtypePage");
 		foreach($select_options as $select_option) {
 			$f->addOption($select_option->name, $select_option->label ?: $select_option->name);
 		}
-		$config_field = "pagefield_{$identifier}";
-		$f->value = $this->$config_field;
+		$f->value = $this->$f_name;
 		return $f;
 	}
 

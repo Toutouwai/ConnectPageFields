@@ -1,0 +1,5 @@
+#ModuleEditForm .InputfieldFieldset { position:relative; }
+li[class*="Inputfield_delete_"] { position:absolute; top:11px; right:54px; z-index:10; width:auto !important; background:none !important; }
+li[class*="Inputfield_delete_"] > label { display:none !important; }
+li[class*="Inputfield_delete_"] .InputfieldContent { background:none !important; border:0 !important; padding:0 !important; }
+.Inputfield_add_new input { display:none; }
