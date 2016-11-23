@@ -298,10 +298,10 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		$fieldset->name = "row_{$identifier}";
 		$fieldset->label = $this->_('Connected field pair') . " $number";
 
-		$f = $this->makePageFieldSelect(1, $identifier);
+		$f = $this->makePageFieldSelect(1, 'A', $identifier);
 		$fieldset->add($f);
 
-		$f = $this->makePageFieldSelect(2, $identifier);
+		$f = $this->makePageFieldSelect(2, 'B', $identifier);
 		$fieldset->add($f);
 
 		$f = $this->makeDeleteCheckbox($identifier);
@@ -323,11 +323,11 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 	/**
 	 * Make select for Page field
 	 */
-	public function makePageFieldSelect($number, $identifier) {
+	public function makePageFieldSelect($number, $letter, $identifier) {
 		$f_name = "pagefield_{$number}_{$identifier}";
 		$f = $this->modules->get('InputfieldSelect');
 		$f->name = $f_name;
-		$f->label = $this->_('Page field');
+		$f->label = $this->_('Page field') . " $letter";
 		$f->columnWidth = 50;
 		$select_options = $this->fields->find("type=FieldtypePage");
 		foreach($select_options as $select_option) {

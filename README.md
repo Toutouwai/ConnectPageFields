@@ -13,13 +13,13 @@ You cannot retrieve these pages with a single efficient $pages->find() query, an
 
 The solution is to have a two-way relationship so that movie pages have an "actors" Page field and actor pages have a "movies" Page field. This module will keep these two Page fields in sync so that adding "Ryan Gosling" to "Drive" automatically adds "Drive" to "Ryan Gosling".
 
-Also, you can select the same Page field in both PageField A and PageField B. For example, create a "Related" Page field for related pages. Choose "Related" for both fields in a pair in the module config. Now when you add "Orange buffoon" to Related for "Donald Trump", "Donald Trump" is automatically added to Related for "Orange buffoon".
+Also, you can select the same Page field in both Page field A and Page field B. For example, create a "Related" Page field for related pages. Choose "Related" for both fields in a pair in the module config. Now when you add "Orange buffoon" to Related for "Donald Trump", "Donald Trump" is automatically added to Related for "Orange buffoon".
 
 ## Usage
 
 [Install](http://modules.processwire.com/install-uninstall/) the ConnectPageFields module. If you haven't already done so, create the two Page fields you want to connect and add them to templates.
  
-In the module config select the two Page fields in a "Connected field pair" row as PageField A and PageField B.
+In the module config select the two Page fields in a "Connected field pair" row as Page field A and Page field B.
 
 You can define up to 20 pairs of connected Page fields. Use the "Number of connected field pairs" field to add rows as needed.
 
@@ -27,8 +27,8 @@ You can define up to 20 pairs of connected Page fields. Use the "Number of conne
 
 Make sure you have set the "Selectable Pages" settings for each Page field correctly: 
 
-* The settings for PageField A should allow pages using the template(s) that PageField B has been added to.
-* The settings for PageField B should allow pages using the template(s) that PageField A has been added to.
+* The settings for Page field A should allow pages using the template(s) that Page field B has been added to.
+* The settings for Page field B should allow pages using the template(s) that Page field A has been added to.
 
 ## License
 
