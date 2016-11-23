@@ -21,7 +21,7 @@ Also, you can select the same Page field in both Page field A and Page field B. 
  
 In the module config select the two Page fields in a "Connected field pair" row as Page field A and Page field B.
 
-You can define up to 20 pairs of connected Page fields. Use the "Number of connected field pairs" field to add rows as needed.
+You can add rows as needed using the "Add another row" button.
 
 ### Troubleshooting
 
