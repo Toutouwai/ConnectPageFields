@@ -23,7 +23,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Connect Page Fields',
-			'version' => '6',
+			'version' => '7',
 			'summary' => "Allows the connecting of two related Page fields so that changing one updates the other.",
 			'author' => 'Robin Sallis',
 			'autoload' => true,
@@ -46,7 +46,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		// Upgrade from < v0.0.5
 		if($fromVersion < 5) {
 			// get existing config
-			$cfg =  $this->modules->getModuleConfigData($this->className());
+			$cfg = $this->modules->getModuleConfigData($this->className());
 			// organise into groups
 			$cfg_grouped = array();
 			foreach($cfg as $key => $value) {
@@ -105,7 +105,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		if($page->skipme) return;
 
 		$tpl = $page->template;
-		$cfg =  $this->modules->getModuleConfigData($this->className());
+		$cfg = $this->modules->getModuleConfigData($this->className());
 		$cfg_filtered = array();
 		foreach($cfg as $key => $value) {
 			if(strpos($key, 'pagefield') !== false) $cfg_filtered[$key] = $value; // we only want the pagefield config fields
@@ -294,7 +294,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 	 * Make fieldset
 	 */
 	public function makeFieldset($identifier, $number) {
-		$fieldset = $this->modules->get("InputfieldFieldset");
+		$fieldset = $this->modules->get('InputfieldFieldset');
 		$fieldset->name = "row_{$identifier}";
 		$fieldset->label = $this->_('Connected field pair') . " $number";
 
@@ -328,8 +328,10 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		$f = $this->modules->get('InputfieldSelect');
 		$f->name = $f_name;
 		$f->label = $this->_('Page field') . " $letter";
+		$f->required = true;
 		$f->columnWidth = 50;
 		$select_options = $this->fields->find("type=FieldtypePage");
+		$f->addOption(''); // first item blank
 		foreach($select_options as $select_option) {
 			$f->addOption($select_option->name, $select_option->label ?: $select_option->name);
 		}
