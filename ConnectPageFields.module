@@ -81,7 +81,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 	public function ready() {
 		// add css and js for module config page
 		$info = $this->getModuleInfo();
-		$version = (int) $info['version'];
+		$version = $info['version'];
 		$config = $this->config;
 		if($this->input->get->name == $this->className) {
 			$config->styles->add($config->urls->{$this->className} . "module_config.css?v=$version");
