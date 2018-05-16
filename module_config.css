@@ -1,5 +1,6 @@
 #ModuleEditForm .Inputfields .InputfieldFieldset { position:relative; }
-#ModuleEditForm .Inputfields li[class*="Inputfield_delete_"] { position:absolute; top:11px; right:54px; z-index:10; width:auto !important; background:none !important; }
+#ModuleEditForm .Inputfields li[class*="Inputfield_delete_"] { position:absolute; top:11px; right:54px; z-index:10; width:auto !important; background:none !important; outline:none; }
+#ModuleEditForm .Inputfields li[class*="Inputfield_delete_"] .uk-checkbox:not(:checked) { background-color:#fff; }
 #ModuleEditForm .Inputfields li[class*="Inputfield_delete_"] > label { display:none !important; }
 #ModuleEditForm .Inputfields li[class*="Inputfield_delete_"] .InputfieldContent { background:none !important; border:0 !important; padding:0 !important; }
 #ModuleEditForm .Inputfields .Inputfield_add_new input { display:none; }

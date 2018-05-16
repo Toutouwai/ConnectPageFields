@@ -23,7 +23,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Connect Page Fields',
-			'version' => '7',
+			'version' => '0.1.8',
 			'summary' => "Allows the connecting of two related Page fields so that changing one updates the other.",
 			'author' => 'Robin Sallis',
 			'autoload' => true,
