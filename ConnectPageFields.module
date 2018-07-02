@@ -23,7 +23,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Connect Page Fields',
-			'version' => '0.1.8',
+			'version' => '0.1.9',
 			'summary' => "Allows the connecting of two related Page fields so that changing one updates the other.",
 			'author' => 'Robin Sallis',
 			'autoload' => true,
@@ -165,7 +165,11 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 				foreach($added as $item) {
 					if(!$item->fields->get($other_fname)) continue;
 					$added_valid = $this->modules->InputfieldPage->isValidPage($page, $other_field, $item);
-					$not_existing = $other_is_multi ? !$item->$other_fname->has($page) : $item->$other_fname != $page;
+					if($other_is_multi) {
+						$not_existing = !$item->$other_fname->has($page);
+					} else {
+						$not_existing = !$item->$other_fname || $item->$other_fname->id !== $page->id;
+					}
 					if($added_valid && $not_existing) {
 						$item->of(false);
 						$other_is_multi ? $item->$other_fname->add($page) : $item->$other_fname = $page;
@@ -176,7 +180,11 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 				foreach($removed as $item) {
 					if(!$item->fields->get($other_fname)) continue;
 					$removed_valid = $this->modules->InputfieldPage->isValidPage($page, $other_field, $item);
-					$existing = $other_is_multi ? $item->$other_fname->has($page) : $item->$other_fname == $page;
+					if($other_is_multi) {
+						$existing = $item->$other_fname->has($page);
+					} else {
+						$existing = $item->$other_fname && $item->$other_fname->id === $page->id;
+					}
 					if($removed_valid && $existing) {
 						$item->of(false);
 						$other_is_multi ? $item->$other_fname->remove($page) : $item->$other_fname = '';
