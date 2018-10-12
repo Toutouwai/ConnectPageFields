@@ -24,7 +24,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		return array(
 			'title' => 'Connect Page Fields',
 			'summary' => "Allows the connecting of two related Page Reference fields so that changing one updates the other.",
-			'version' => '0.2.0',
+			'version' => '0.2.1',
 			'author' => 'Robin Sallis',
 			'autoload' => true,
 			'icon' => 'arrows-h',
@@ -43,6 +43,12 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		$this->wire()->pages->addHookAfter('saveReady', $this, 'pageSave');
 		$this->wire()->pages->addHookAfter('added', $this, 'pageSave');
 		$this->wire()->pages->addHookAfter('saveFieldReady', $this, 'fieldSave');
+	}
+
+	/**
+	 * Ready
+	 */
+	public function ready() {
 		$this->addHookBefore('ProcessModule::executeEdit', $this, 'addConfigAssets');
 		$this->addHookBefore('Modules::saveModuleConfigData', $this, 'processConfig');
 	}
