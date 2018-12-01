@@ -24,7 +24,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		return array(
 			'title' => 'Connect Page Fields',
 			'summary' => "Allows the connecting of two related Page Reference fields so that changing one updates the other.",
-			'version' => '0.2.2',
+			'version' => '0.2.1',
 			'author' => 'Robin Sallis',
 			'autoload' => true,
 			'icon' => 'arrows-h',
@@ -380,7 +380,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		$select_options = $this->fields->find("type=FieldtypePage");
 		$f->addOption(''); // first item blank
 		foreach($select_options as $select_option) {
-			$f->addOption($select_option->id, $select_option->label ?: $select_option->name);
+			$f->addOption($select_option->name, $select_option->label ?: $select_option->name);
 		}
 		$f->value = $this->$f_name;
 		return $f;
@@ -402,20 +402,6 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 	public function ___upgrade($fromVersion, $toVersion) {
 		// Convert integer version to semantic version
 		if(is_int($fromVersion)) $fromVersion = '0.0.' . $fromVersion;
-
-		// Upgrade from < v0.2.2
-		if(version_compare($fromVersion, '0.2.2', '<')) {
-			// Get existing config
-			$cfg = $this->modules->getModuleConfigData($this->className());
-			foreach($cfg as $key => $value) {
-				if(strpos($key, 'pagefield') !== 0) continue;
-				$f = $this->wire()->fields->get($value);
-				// Replace field name with field ID
-				$cfg[$key] = $f->id;
-			}
-			// Save config
-			$this->modules->saveModuleConfigData($this->className(), $cfg);
-		}
 
 		// Upgrade from < v0.0.5
 		if(version_compare($fromVersion, '0.0.5', '<')) {
