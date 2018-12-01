@@ -24,7 +24,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		return array(
 			'title' => 'Connect Page Fields',
 			'summary' => "Allows the connecting of two related Page Reference fields so that changing one updates the other.",
-			'version' => '0.2.1',
+			'version' => '0.2.2',
 			'author' => 'Robin Sallis',
 			'autoload' => true,
 			'icon' => 'arrows-h',
@@ -69,7 +69,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		// Look for connected fields on this page
 		$this->determineConnectedFields();
 		/* @var Fieldgroup $flds */
-		$flds = $page->template->fieldgroup->find("name=" . implode('|', $this->connected_fields));
+		$flds = $page->template->fieldgroup->find("id=" . implode('|', $this->connected_fields));
 		foreach($flds as $field) {
 			// Skip if this is not a newly added page and field hasn't changed
 			if(!$page->cpf_added && !$page->isChanged($field->name)) continue;
@@ -105,7 +105,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		$this_is_multi = $field->derefAsPage == FieldtypePage::derefAsPageArray ? true : false;
 
 		// Find occurrences of field in config
-		$cfg_matches = array_keys($this->connected_fields, $field->name);
+		$cfg_matches = array_keys($this->connected_fields, $field->id);
 		foreach($cfg_matches as $cfg_match) {
 			$unique = substr($cfg_match, -13); // last 13 characters are the unique code
 			$num = $cfg_match[10];
@@ -115,8 +115,10 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 
 			// Get the other field
 			$other_num = $num === '1' ? '2' : '1';
-			$other_fname = $this->connected_fields["pagefield_{$other_num}_{$unique}"];
-			$other_field = $this->fields->get($other_fname);
+			$other_field = $this->wire()->fields->get($this->connected_fields["pagefield_{$other_num}_{$unique}"]);
+			if(!$other_field) continue;
+			$other_fname = $other_field->name;
+
 			$other_is_multi = $other_field->derefAsPage == FieldtypePage::derefAsPageArray ? true : false;
 
 			// Old value
@@ -124,7 +126,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 				// This is a newly added page, so the old value will be an empty field value
 				$old_value = $this_is_multi ? new PageArray() : new NullPage();
 			} else {
-				$old_value = $this->pages->getById($page->id, array(
+				$old_value = $this->wire()->pages->getById($page->id, array(
 					'cache' => false, // don't let it write to cache
 					'getFromCache' => false, // don't let it read from cache
 					'getOne' => true, // return a Page instead of a PageArray
@@ -152,7 +154,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 			// Apply to other field
 			foreach($added as $item) {
 				if(!$item->fields->get($other_fname)) continue;
-				$added_valid = $this->modules->InputfieldPage->isValidPage($page, $other_field, $item);
+				$added_valid = $this->wire()->modules->InputfieldPage->isValidPage($page, $other_field, $item);
 				if($other_is_multi) {
 					$not_existing = !$item->$other_fname->has($page);
 				} else {
@@ -168,7 +170,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 			}
 			foreach($removed as $item) {
 				if(!$item->fields->get($other_fname)) continue;
-				$removed_valid = $this->modules->InputfieldPage->isValidPage($page, $other_field, $item);
+				$removed_valid = $this->wire()->modules->InputfieldPage->isValidPage($page, $other_field, $item);
 				if($other_is_multi) {
 					$existing = $item->$other_fname->has($page);
 				} else {
@@ -380,7 +382,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		$select_options = $this->fields->find("type=FieldtypePage");
 		$f->addOption(''); // first item blank
 		foreach($select_options as $select_option) {
-			$f->addOption($select_option->name, $select_option->label ?: $select_option->name);
+			$f->addOption($select_option->id, $select_option->label ?: $select_option->name);
 		}
 		$f->value = $this->$f_name;
 		return $f;
@@ -402,6 +404,20 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 	public function ___upgrade($fromVersion, $toVersion) {
 		// Convert integer version to semantic version
 		if(is_int($fromVersion)) $fromVersion = '0.0.' . $fromVersion;
+
+		// Upgrade from < v0.2.2
+		if(version_compare($fromVersion, '0.2.2', '<')) {
+			// Get existing config
+			$cfg = $this->modules->getModuleConfigData($this->className());
+			foreach($cfg as $key => $value) {
+				if(strpos($key, 'pagefield') !== 0) continue;
+				$f = $this->wire()->fields->get($value);
+				// Replace field name with field ID
+				$cfg[$key] = $f->id;
+			}
+			// Save config
+			$this->modules->saveModuleConfigData($this->className(), $cfg);
+		}
 
 		// Upgrade from < v0.0.5
 		if(version_compare($fromVersion, '0.0.5', '<')) {
