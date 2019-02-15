@@ -24,7 +24,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		return array(
 			'title' => 'Connect Page Fields',
 			'summary' => "Allows the connecting of two related Page Reference fields so that changing one updates the other.",
-			'version' => '0.2.2',
+			'version' => '0.2.3',
 			'author' => 'Robin Sallis',
 			'autoload' => true,
 			'icon' => 'arrows-h',
@@ -124,7 +124,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 			// Old value
 			if($page->cpf_added) {
 				// This is a newly added page, so the old value will be an empty field value
-				$old_value = $this_is_multi ? new PageArray() : new NullPage();
+				$old_value = $this_is_multi ? $this->wire(new PageArray()) : $this->wire(new NullPage());
 			} else {
 				$old_value = $this->wire()->pages->getById($page->id, array(
 					'cache' => false, // don't let it write to cache
@@ -134,17 +134,22 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 			}
 
 			// New value
-			$new_value = $page->$this_fname;
+			if($page->cpf_added) {
+				// This is a newly added page, so the new value will be an empty field value
+				$new_value = $this_is_multi ? $this->wire(new PageArray()) : $this->wire(new NullPage());
+			} else {
+				$new_value = $page->$this_fname;
+			}
 
 			// Value changes
-			$added = new PageArray();
-			$removed = new PageArray();
 			if($this_is_multi) {
 				// For multi Page fields
 				$added = $new_value->find("id!=$old_value");
 				$removed = $old_value->find("id!=$new_value");
 			} else {
 				// For non-multi Page fields
+				$added = $this->wire(new PageArray());
+				$removed = $this->wire(new PageArray());
 				// If the old value was a Page and not a NullPage
 				if($old_value && $old_value->id) $removed->add($old_value);
 				// If the new value is a Page and not a NullPage
@@ -270,9 +275,10 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 
 	/**
 	 * Config inputfields
+	 *
+	 * @param InputfieldWrapper $inputfields
 	 */
-	public function getModuleConfigInputfields() {
-		$inputfields = new InputfieldWrapper();
+	public function getModuleConfigInputfields($inputfields) {
 		$inputfields->add($this->makeCodes());
 		$inputfields->add($this->makeUnique());
 		$codes = explode('|', rtrim($this->codes, '|'));
@@ -283,7 +289,6 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 			$i++;
 		}
 		$inputfields->add($this->makeAddNew());
-		return $inputfields;
 	}
 
 	/**
