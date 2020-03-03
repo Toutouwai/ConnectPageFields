@@ -1,20 +1,5 @@
 <?php namespace ProcessWire;
 
-/**
- *
- * Connect Page Fields
- *
- * @author Robin Sallis
- *
- * ProcessWire 3.x
- * Copyright (C) 2011 by Ryan Cramer
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- *
- * http://www.processwire.com
- * http://www.ryancramer.com
- *
- */
-
 class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 
 	/**
@@ -24,7 +9,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		return array(
 			'title' => 'Connect Page Fields',
 			'summary' => "Allows the connecting of two related Page Reference fields so that changing one updates the other.",
-			'version' => '0.2.3',
+			'version' => '0.3.0',
 			'author' => 'Robin Sallis',
 			'autoload' => true,
 			'icon' => 'arrows-h',
@@ -40,9 +25,9 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 	 * Init
 	 */
 	public function init() {
-		$this->wire()->pages->addHookAfter('saveReady', $this, 'pageSave');
-		$this->wire()->pages->addHookAfter('added', $this, 'pageSave');
-		$this->wire()->pages->addHookAfter('saveFieldReady', $this, 'fieldSave');
+		$this->wire('pages')->addHookBefore('save', $this, 'pageSave');
+		$this->wire('pages')->pages->addHookAfter('added', $this, 'pageSave');
+		$this->wire('pages')->pages->addHookBefore('saveField', $this, 'fieldSave');
 	}
 
 	/**
@@ -64,17 +49,21 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		if(!$page->id) return;
 		// Return if page was already saved by this module (prevent recursion)
 		if($page->cpf_saved) return;
-		// Set custom property to indicate if page was just added
-		$page->cpf_added = $event->method === 'added';
 		// Look for connected fields on this page
 		$this->determineConnectedFields();
 		/* @var Fieldgroup $flds */
 		$flds = $page->template->fieldgroup->find("id=" . implode('|', $this->connected_fields));
+		if(!$flds->count) return;
+		// Clone page to avoid it being potentially overwritten by single Page Reference fields
+		// https://github.com/processwire/processwire-issues/issues/1092
+		$page_clone = clone $page;
 		foreach($flds as $field) {
 			// Skip if this is not a newly added page and field hasn't changed
-			if(!$page->cpf_added && !$page->isChanged($field->name)) continue;
+			if(!$page->_added && !$page->isChanged($field->name)) continue;
 			$this->updateConnectedFields($page, $field);
 		}
+		// Set cloned page as $page argument
+		$event->arguments(0, $page_clone);
 	}
 
 	/**
@@ -85,12 +74,19 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 	protected function fieldSave(HookEvent $event) {
 		$page = $event->arguments(0);
 		$field = $event->arguments(1);
+		// Get field object if $field is a string
+		if(is_string($field)) $field = $this->wire('fields')->get($field);
 		// Return if page was already saved by this module (prevent recursion)
 		if($page->cpf_saved) return;
 		// Return if this field isn't a Page Reference field
 		if($field->type != 'FieldtypePage') return;
+		// Clone page to avoid it being potentially overwritten by single Page Reference fields
+		// https://github.com/processwire/processwire-issues/issues/1092
+		$page_clone = clone $page;
 		$this->determineConnectedFields();
 		$this->updateConnectedFields($page, $field);
+		// Set cloned page as $page argument
+		$event->arguments(0, $page_clone);
 	}
 
 
@@ -115,18 +111,18 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 
 			// Get the other field
 			$other_num = $num === '1' ? '2' : '1';
-			$other_field = $this->wire()->fields->get($this->connected_fields["pagefield_{$other_num}_{$unique}"]);
+			$other_field = $this->wire('fields')->get($this->connected_fields["pagefield_{$other_num}_{$unique}"]);
 			if(!$other_field) continue;
 			$other_fname = $other_field->name;
 
 			$other_is_multi = $other_field->derefAsPage == FieldtypePage::derefAsPageArray ? true : false;
 
 			// Old value
-			if($page->cpf_added) {
+			if($page->_added) {
 				// This is a newly added page, so the old value will be an empty field value
 				$old_value = $this_is_multi ? $this->wire(new PageArray()) : $this->wire(new NullPage());
 			} else {
-				$old_value = $this->wire()->pages->getById($page->id, array(
+				$old_value = $this->wire('pages')->getById($page->id, array(
 					'cache' => false, // don't let it write to cache
 					'getFromCache' => false, // don't let it read from cache
 					'getOne' => true, // return a Page instead of a PageArray
@@ -134,12 +130,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 			}
 
 			// New value
-			if($page->cpf_added) {
-				// This is a newly added page, so the new value will be an empty field value
-				$new_value = $this_is_multi ? $this->wire(new PageArray()) : $this->wire(new NullPage());
-			} else {
-				$new_value = $page->$this_fname;
-			}
+			$new_value = $page->$this_fname;
 
 			// Value changes
 			if($this_is_multi) {
@@ -159,7 +150,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 			// Apply to other field
 			foreach($added as $item) {
 				if(!$item->fields->get($other_fname)) continue;
-				$added_valid = $this->wire()->modules->InputfieldPage->isValidPage($page, $other_field, $item);
+				$added_valid = $this->wire('modules')->InputfieldPage->isValidPage($page, $other_field, $item);
 				if($other_is_multi) {
 					$not_existing = !$item->$other_fname->has($page);
 				} else {
@@ -175,7 +166,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 			}
 			foreach($removed as $item) {
 				if(!$item->fields->get($other_fname)) continue;
-				$removed_valid = $this->wire()->modules->InputfieldPage->isValidPage($page, $other_field, $item);
+				$removed_valid = $this->wire('modules')->InputfieldPage->isValidPage($page, $other_field, $item);
 				if($other_is_multi) {
 					$existing = $item->$other_fname->has($page);
 				} else {
@@ -211,7 +202,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 	 * @param HookEvent $event
 	 */
 	protected function addConfigAssets(HookEvent $event) {
-		if($this->wire()->input->get->name !== $this->className) return;
+		if($this->wire('input')->get->name !== $this->className) return;
 		$info = $this->getModuleInfo();
 		$version = $info['version'];
 		$config = $this->config;
@@ -416,7 +407,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 			$cfg = $this->modules->getModuleConfigData($this->className());
 			foreach($cfg as $key => $value) {
 				if(strpos($key, 'pagefield') !== 0) continue;
-				$f = $this->wire()->fields->get($value);
+				$f = $this->wire('fields')->get($value);
 				// Replace field name with field ID
 				$cfg[$key] = $f->id;
 			}
