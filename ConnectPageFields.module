@@ -9,7 +9,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		return array(
 			'title' => 'Connect Page Fields',
 			'summary' => "Allows the connecting of two related Page Reference fields so that changing one updates the other.",
-			'version' => '0.3.0',
+			'version' => '0.3.1',
 			'author' => 'Robin Sallis',
 			'autoload' => true,
 			'icon' => 'arrows-h',
@@ -193,7 +193,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 			// We only want the data relating to Page Reference connections
 			if(strpos($key, 'pagefield') === 0) $connected_fields[$key] = $value;
 		}
-		$this->connected_fields = $connected_fields;
+		$this->connected_fields = array_filter($connected_fields);
 	}
 
 	/**
