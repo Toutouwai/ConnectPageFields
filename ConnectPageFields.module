@@ -9,7 +9,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		return array(
 			'title' => 'Connect Page Fields',
 			'summary' => "Allows the connecting of two related Page Reference fields so that changing one updates the other.",
-			'version' => '0.3.2',
+			'version' => '0.3.3',
 			'author' => 'Robin Sallis',
 			'href' => 'https://github.com/Toutouwai/ConnectPageFields',
 			'icon' => 'arrows-h',
@@ -113,20 +113,17 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 				// This is a newly added page, so the old value will be an empty field value
 				$old_value = $this_is_multi ? $this->wire(new PageArray()) : $this->wire(new NullPage());
 			} else {
+				// Get unformatted value to support unpublished pages
 				$old_value = $this->wire()->pages->getById($page->id, [
 					'cache' => false, // don't let it write to cache
 					'getFromCache' => false, // don't let it read from cache
 					'getOne' => true, // return a Page instead of a PageArray
-				])->$this_fname;
+				])->getUnformatted($this_fname);
 			}
 
 			// New value
-			if($page->cpf_added) {
-				// This is a newly added page, so the new value will be an empty field value
-				$new_value = $this_is_multi ? $this->wire(new PageArray()) : $this->wire(new NullPage());
-			} else {
-				$new_value = $page->$this_fname;
-			}
+			// Get unformatted value to support unpublished pages
+			$new_value = $page->getUnformatted($this_fname);
 
 			// Value changes
 			if($this_is_multi) {
