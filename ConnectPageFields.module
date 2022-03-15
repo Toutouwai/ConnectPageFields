@@ -9,7 +9,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		return array(
 			'title' => 'Connect Page Fields',
 			'summary' => "Allows the connecting of two related Page Reference fields so that changing one updates the other.",
-			'version' => '0.3.3',
+			'version' => '0.3.4',
 			'author' => 'Robin Sallis',
 			'href' => 'https://github.com/Toutouwai/ConnectPageFields',
 			'icon' => 'arrows-h',
@@ -55,8 +55,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		$page->cpf_added = $event->method === 'added';
 		// Look for connected fields on this page
 		$this->determineConnectedFields();
-		/* @var Fieldgroup $flds */
-		$flds = $page->template->fieldgroup->find("id=" . implode('|', $this->connected_fields));
+		$flds = $page->getFields()->find("id=" . implode('|', $this->connected_fields));
 		foreach($flds as $field) {
 			// Skip if this is not a newly added page and field hasn't changed
 			if(!$page->cpf_added && !$page->isChanged($field->name)) continue;
