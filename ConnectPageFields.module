@@ -9,7 +9,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		return array(
 			'title' => 'Connect Page Fields',
 			'summary' => "Allows the connecting of two related Page Reference fields so that changing one updates the other.",
-			'version' => '0.3.5',
+			'version' => '0.3.6',
 			'author' => 'Robin Sallis',
 			'href' => 'https://github.com/Toutouwai/ConnectPageFields',
 			'icon' => 'arrows-h',
@@ -141,7 +141,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 
 			// Apply to other field
 			foreach($added as $item) {
-				if(!$item->fields->get($other_fname)) continue;
+				if(!$item->fields || !$item->fields->get($other_fname)) continue;
 				$added_valid = $this->wire()->modules->InputfieldPage->isValidPage($page, $other_field, $item);
 				if($other_is_multi) {
 					$not_existing = !$item->$other_fname->has($page);
@@ -157,7 +157,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 				}
 			}
 			foreach($removed as $item) {
-				if(!$item->fields->get($other_fname)) continue;
+				if(!$item->fields || !$item->fields->get($other_fname)) continue;
 				$removed_valid = $this->wire()->modules->InputfieldPage->isValidPage($page, $other_field, $item);
 				if($other_is_multi) {
 					$existing = $item->$other_fname->has($page);
@@ -367,7 +367,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		$f->label = $this->_('Page field') . " $letter";
 		$f->required = true;
 		$f->columnWidth = 50;
-		$select_options = $this->fields->find("type=FieldtypePage");
+		$select_options = $this->wire()->fields->find("type=FieldtypePage");
 		$f->addOption(''); // first item blank
 		foreach($select_options as $select_option) {
 			$f->addOption($select_option->id, $select_option->label ?: $select_option->name);
