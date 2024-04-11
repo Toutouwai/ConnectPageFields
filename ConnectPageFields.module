@@ -9,7 +9,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		return array(
 			'title' => 'Connect Page Fields',
 			'summary' => "Allows the connecting of two related Page Reference fields so that changing one updates the other.",
-			'version' => '0.3.6',
+			'version' => '0.3.7',
 			'author' => 'Robin Sallis',
 			'href' => 'https://github.com/Toutouwai/ConnectPageFields',
 			'icon' => 'arrows-h',
@@ -142,13 +142,12 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 			// Apply to other field
 			foreach($added as $item) {
 				if(!$item->fields || !$item->fields->get($other_fname)) continue;
-				$added_valid = $this->wire()->modules->InputfieldPage->isValidPage($page, $other_field, $item);
 				if($other_is_multi) {
 					$not_existing = !$item->$other_fname->has($page);
 				} else {
 					$not_existing = !$item->$other_fname || $item->$other_fname->id !== $page->id;
 				}
-				if($added_valid && $not_existing) {
+				if($not_existing) {
 					$item->of(false);
 					$other_is_multi ? $item->$other_fname->add($page) : $item->$other_fname = $page;
 					// Set custom property for preventing recursion
@@ -158,13 +157,12 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 			}
 			foreach($removed as $item) {
 				if(!$item->fields || !$item->fields->get($other_fname)) continue;
-				$removed_valid = $this->wire()->modules->InputfieldPage->isValidPage($page, $other_field, $item);
 				if($other_is_multi) {
 					$existing = $item->$other_fname->has($page);
 				} else {
 					$existing = $item->$other_fname && $item->$other_fname->id === $page->id;
 				}
-				if($removed_valid && $existing) {
+				if($existing) {
 					$item->of(false);
 					$other_is_multi ? $item->$other_fname->remove($page) : $item->$other_fname = '';
 					// Set custom property for preventing recursion
