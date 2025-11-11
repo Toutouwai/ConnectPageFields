@@ -9,7 +9,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		return array(
 			'title' => 'Connect Page Fields',
 			'summary' => "Allows the connecting of two related Page Reference fields so that changing one updates the other.",
-			'version' => '0.3.7',
+			'version' => '0.3.8',
 			'author' => 'Robin Sallis',
 			'href' => 'https://github.com/Toutouwai/ConnectPageFields',
 			'icon' => 'arrows-h',
@@ -368,7 +368,9 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		$select_options = $this->wire()->fields->find("type=FieldtypePage");
 		$f->addOption(''); // first item blank
 		foreach($select_options as $select_option) {
-			$f->addOption($select_option->id, $select_option->label ?: $select_option->name);
+			$label = $select_option->get('label|name');
+			$label .= " [$select_option->name]";
+			$f->addOption($select_option->id, $label);
 		}
 		$f->value = $this->$f_name;
 		return $f;
