@@ -9,7 +9,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 		return array(
 			'title' => 'Connect Page Fields',
 			'summary' => "Allows the connecting of two related Page Reference fields so that changing one updates the other.",
-			'version' => '0.3.8',
+			'version' => '0.3.9',
 			'author' => 'Robin Sallis',
 			'href' => 'https://github.com/Toutouwai/ConnectPageFields',
 			'icon' => 'arrows-h',
@@ -37,7 +37,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 	 */
 	public function ready() {
 		$this->addHookBefore('ProcessModule::executeEdit', $this, 'addConfigAssets');
-		$this->addHookBefore('Modules::saveModuleConfigData', $this, 'processConfig');
+		$this->addHookBefore('Modules::saveConfig', $this, 'processConfig');
 	}
 
 	/**
@@ -381,7 +381,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 	 */
 	public function ___install() {
 		// Create one row code to get things started
-		$this->modules->saveModuleConfigData($this->className, ['codes' => uniqid() . '|']);
+		$this->modules->saveConfig($this->className, ['codes' => uniqid() . '|']);
 	}
 
 	/**
@@ -404,7 +404,7 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 				$cfg[$key] = $f->id;
 			}
 			// Save config
-			$this->modules->saveModuleConfigData($this->className(), $cfg);
+			$this->modules->saveConfig($this->className(), $cfg);
 		}
 
 		// Upgrade from < v0.0.5
@@ -434,8 +434,8 @@ class ConnectPageFields extends WireData implements Module, ConfigurableModule {
 					}
 				}
 			}
-			$this->modules->saveModuleConfigData($this->className(), []); // clear config
-			$this->modules->saveModuleConfigData($this->className(), $new_cfg); // save new config
+			$this->modules->saveConfig($this->className(), []); // clear config
+			$this->modules->saveConfig($this->className(), $new_cfg); // save new config
 		}
 	}
 
